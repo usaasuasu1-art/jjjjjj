@@ -1,0 +1,335 @@
+import React, { useState } from 'react';
+import { Upload, Globe, Loader2, CheckCircle, AlertCircle, FolderOpen } from 'lucide-react';
+
+export default function VercelDeployer() {
+  const [siteName, setSiteName] = useState('');
+  const [files, setFiles] = useState([]);
+  const [deploying, setDeploying] = useState(false);
+  const [deployStatus, setDeployStatus] = useState(null);
+  const [deployedUrl, setDeployedUrl] = useState('');
+  const [deploymentLogs, setDeploymentLogs] = useState([]);
+
+  const VERCEL_TOKEN = '69gi4EwELfMXLxy5nt2zEQ2j';
+
+  const addLog = (message) => {
+    setDeploymentLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
+  };
+
+  const handleFileChange = async (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(selectedFiles);
+    addLog(`${selectedFiles.length} file dipilih`);
+  };
+
+  const readFileAsBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleDeploy = async () => {
+    if (!siteName.trim()) {
+      setDeployStatus({ type: 'error', message: 'Nama website harus diisi!' });
+      return;
+    }
+
+    if (files.length === 0) {
+      setDeployStatus({ type: 'error', message: 'Pilih minimal satu file untuk di-upload!' });
+      return;
+    }
+
+    setDeploying(true);
+    setDeploymentLogs([]);
+    setDeployStatus({ type: 'info', message: 'Memulai deployment...' });
+    addLog('Memulai proses deployment ke Vercel');
+
+    try {
+      // Prepare files untuk Vercel API
+      addLog(`Membaca ${files.length} file...`);
+      const fileObjects = {};
+      
+      for (const file of files) {
+        const content = await readFileAsBase64(file);
+        const filePath = file.webkitRelativePath || file.name;
+        fileObjects[filePath] = {
+          file: content,
+          encoding: 'base64'
+        };
+        addLog(`✓ ${filePath} siap`);
+      }
+
+      // Check if index.html exists
+      const hasIndex = Object.keys(fileObjects).some(path => 
+        path.endsWith('index.html') || path === 'index.html'
+      );
+
+      if (!hasIndex) {
+        setDeployStatus({ 
+          type: 'error', 
+          message: 'Error: Tidak ada file index.html. Pastikan Anda upload folder yang berisi index.html' 
+        });
+        setDeploying(false);
+        return;
+      }
+
+      addLog('Mengirim ke Vercel API...');
+
+      // Create deployment via Vercel API
+      const deploymentResponse = await fetch('https://api.vercel.com/v13/deployments', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${VERCEL_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: siteName.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+          files: Object.keys(fileObjects).map(path => ({
+            file: path,
+            data: fileObjects[path].file,
+            encoding: 'base64'
+          })),
+          projectSettings: {
+            framework: null
+          },
+          target: 'production'
+        })
+      });
+
+      if (!deploymentResponse.ok) {
+        const errorData = await deploymentResponse.json();
+        throw new Error(errorData.error?.message || 'Deployment gagal');
+      }
+
+      const deploymentData = await deploymentResponse.json();
+      addLog('✓ Deployment dibuat');
+      addLog(`Deployment ID: ${deploymentData.id}`);
+
+      // Get deployment URL
+      const url = `https://${deploymentData.url}`;
+      setDeployedUrl(url);
+      
+      addLog('✓ Deployment berhasil!');
+      setDeployStatus({ 
+        type: 'success', 
+        message: 'Website berhasil di-deploy ke Vercel!' 
+      });
+
+      // Check deployment status
+      addLog('Memeriksa status deployment...');
+      let attempts = 0;
+      const maxAttempts = 30;
+      
+      const checkStatus = async () => {
+        try {
+          const statusResponse = await fetch(`https://api.vercel.com/v13/deployments/${deploymentData.id}`, {
+            headers: {
+              'Authorization': `Bearer ${VERCEL_TOKEN}`
+            }
+          });
+
+          if (statusResponse.ok) {
+            const statusData = await statusResponse.json();
+            addLog(`Status: ${statusData.readyState}`);
+            
+            if (statusData.readyState === 'READY') {
+              addLog('✓ Website sudah online dan siap diakses!');
+              return;
+            } else if (statusData.readyState === 'ERROR') {
+              addLog('⚠ Deployment error, tapi URL mungkin masih bisa diakses');
+              return;
+            }
+          }
+
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(checkStatus, 2000);
+          }
+        } catch (err) {
+          console.error('Error checking status:', err);
+        }
+      };
+
+      checkStatus();
+
+    } catch (error) {
+      console.error('Deployment error:', error);
+      addLog(`✗ Error: ${error.message}`);
+      setDeployStatus({ 
+        type: 'error', 
+        message: `Deployment gagal: ${error.message}` 
+      });
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 py-12 px-4">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-6">
+            <div className="flex items-center gap-3">
+              <Globe className="w-8 h-8 text-white" />
+              <h1 className="text-3xl font-bold text-white">Vercel Deployer</h1>
+            </div>
+            <p className="text-purple-100 mt-2">Deploy website Anda ke Vercel secara real-time</p>
+          </div>
+
+          {/* Form */}
+          <div className="p-8 space-y-6">
+            {/* Site Name Input */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Nama Website
+              </label>
+              <input
+                type="text"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                placeholder="my-awesome-website"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                disabled={deploying}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                URL akan menjadi: {siteName ? `${siteName.toLowerCase().replace(/[^a-z0-9-]/g, '-')}.vercel.app` : 'nama-website.vercel.app'}
+              </p>
+            </div>
+
+            {/* File Upload */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Upload Website Files
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors">
+                <FolderOpen className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="file-upload"
+                  disabled={deploying}
+                  webkitdirectory=""
+                  directory=""
+                  multiple
+                />
+                <label
+                  htmlFor="file-upload"
+                  className="cursor-pointer text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  Klik untuk upload folder website
+                </label>
+                <p className="text-sm text-gray-500 mt-1">Upload folder yang berisi index.html</p>
+              </div>
+              
+              {files.length > 0 && (
+                <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    {files.length} file dipilih:
+                  </p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {files.slice(0, 10).map((file, idx) => (
+                      <p key={idx} className="text-xs text-gray-600 truncate">
+                        • {file.webkitRelativePath || file.name} ({(file.size / 1024).toFixed(2)} KB)
+                      </p>
+                    ))}
+                    {files.length > 10 && (
+                      <p className="text-xs text-gray-500 italic">
+                        ...dan {files.length - 10} file lainnya
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Deployment Logs */}
+            {deploymentLogs.length > 0 && (
+              <div className="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-xs max-h-48 overflow-y-auto">
+                {deploymentLogs.map((log, idx) => (
+                  <div key={idx}>{log}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Status Message */}
+            {deployStatus && (
+              <div className={`p-4 rounded-lg flex items-start gap-3 ${
+                deployStatus.type === 'success' ? 'bg-green-50 border border-green-200' :
+                deployStatus.type === 'error' ? 'bg-red-50 border border-red-200' :
+                'bg-blue-50 border border-blue-200'
+              }`}>
+                {deployStatus.type === 'success' && <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                {deployStatus.type === 'error' && <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />}
+                {deployStatus.type === 'info' && <Loader2 className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5 animate-spin" />}
+                <div className="flex-1">
+                  <p className={`text-sm font-medium ${
+                    deployStatus.type === 'success' ? 'text-green-800' :
+                    deployStatus.type === 'error' ? 'text-red-800' :
+                    'text-blue-800'
+                  }`}>
+                    {deployStatus.message}
+                  </p>
+                  {deployedUrl && (
+                    <a 
+                      href={deployedUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-purple-600 hover:text-purple-700 underline mt-1 inline-block font-semibold"
+                    >
+                      🚀 Buka Website: {deployedUrl}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Deploy Button */}
+            <button
+              onClick={handleDeploy}
+              disabled={deploying}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {deploying ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Deploying ke Vercel...
+                </>
+              ) : (
+                <>
+                  <Globe className="w-5 h-5" />
+                  Deploy ke Vercel
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Footer Info */}
+          <div className="bg-gray-50 px-8 py-4 border-t border-gray-200">
+            <p className="text-xs text-gray-600">
+              <strong>✓ Real Vercel API Integration</strong> - Website Anda akan langsung online di Vercel
+            </p>
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="mt-8 bg-white rounded-xl p-6 shadow-lg">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">📝 Cara Menggunakan</h2>
+          <ol className="space-y-3 text-sm text-gray-700 list-decimal list-inside">
+            <li>Siapkan folder website Anda yang berisi <code className="bg-gray-100 px-2 py-1 rounded">index.html</code></li>
+            <li>Masukkan nama untuk website Anda</li>
+            <li>Klik "Upload folder website" dan pilih folder Anda</li>
+            <li>Klik "Deploy ke Vercel" dan tunggu prosesnya selesai</li>
+            <li>Website Anda akan online di <code className="bg-gray-100 px-2 py-1 rounded">[nama].vercel.app</code></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  );
+}
