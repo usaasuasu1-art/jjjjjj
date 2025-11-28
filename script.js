@@ -133,9 +133,25 @@ async function handleDeploy() {
         addLog(`Membaca ${selectedFiles.length} file...`);
         const fileObjects = {};
         
+        // Find the common root path to remove it
+        let commonPath = '';
+        if (selectedFiles.length > 0 && selectedFiles[0].webkitRelativePath) {
+            const firstPath = selectedFiles[0].webkitRelativePath;
+            const pathParts = firstPath.split('/');
+            if (pathParts.length > 1) {
+                commonPath = pathParts[0] + '/';
+            }
+        }
+        
         for (const file of selectedFiles) {
             const content = await readFileAsBase64(file);
-            const filePath = file.webkitRelativePath || file.name;
+            let filePath = file.webkitRelativePath || file.name;
+            
+            // Remove common root path so index.html is at root
+            if (commonPath && filePath.startsWith(commonPath)) {
+                filePath = filePath.substring(commonPath.length);
+            }
+            
             fileObjects[filePath] = {
                 file: content,
                 encoding: 'base64'
@@ -145,14 +161,15 @@ async function handleDeploy() {
         
         // Check for index.html
         const hasIndex = Object.keys(fileObjects).some(path => 
-            path.endsWith('index.html') || path === 'index.html'
+            path === 'index.html'
         );
         
         if (!hasIndex) {
-            showStatus('error', 'Error: Tidak ada file index.html. Pastikan Anda upload folder yang berisi index.html');
+            showStatus('error', 'Error: Tidak ada file index.html di root folder. Pastikan index.html ada di folder utama yang Anda upload');
             return;
         }
         
+        addLog(`File index.html ditemukan di root`);
         addLog('Mengirim ke Vercel API...');
         
         // Deploy to Vercel
