@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vercel Deployer - Deploy Website Mudah</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-content">
+                    <svg class="icon-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <h1>Vercel Deployer</h1>
+                </div>
+                <p class="header-subtitle">Deploy website Anda ke Vercel secara real-time</p>
+            </div>
+
+            <!-- Form -->
+            <div class="form-container">
+                <!-- Site Name Input -->
+                <div class="form-group">
+                    <label for="siteName">Nama Website</label>
+                    <input 
+                        type="text" 
+                        id="siteName" 
+                        placeholder="my-awesome-website"
+                        class="input-field"
+                    >
+                    <p class="input-hint">URL akan menjadi: <span id="urlPreview">nama-website.vercel.app</span></p>
+                </div>
+
+                <!-- File Upload -->
+                <div class="form-group">
+                    <label>Upload Website Files</label>
+                    <div class="upload-area" id="uploadArea">
+                        <svg class="icon-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <input 
+                            type="file" 
+                            id="fileInput" 
+                            class="file-input"
+                            webkitdirectory
+                            directory
+                            multiple
+                        >
+                        <label for="fileInput" class="upload-label">
+                            Klik untuk upload folder website
+                        </label>
+                        <p class="upload-hint">Upload folder yang berisi index.html</p>
+                    </div>
+                    
+                    <div id="fileList" class="file-list" style="display: none;">
+                        <p class="file-list-title"><span id="fileCount">0</span> file dipilih:</p>
+                        <div id="fileListContent" class="file-list-content"></div>
+                    </div>
+                </div>
+
+                <!-- Deployment Logs -->
+                <div id="deploymentLogs" class="logs-container" style="display: none;"></div>
+
+                <!-- Status Message -->
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+
+                <!-- Deploy Button -->
+                <button id="deployButton" class="deploy-button">
+                    <svg class="icon-deploy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    <span>Deploy ke Vercel</span>
+                </button>
+            </div>
+
+            <!-- Footer -->
+            <div class="footer">
+                <p><strong>✓ Real Vercel API Integration</strong> - Website Anda akan langsung online di Vercel</p>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h2>📝 Cara Menggunakan</h2>
+            <ol>
+                <li>Siapkan folder website Anda yang berisi <code>index.html</code></li>
+                <li>Masukkan nama untuk website Anda</li>
+                <li>Klik "Upload folder website" dan pilih folder Anda</li>
+                <li>Klik "Deploy ke Vercel" dan tunggu prosesnya selesai</li>
+                <li>Website Anda akan online di <code>[nama].vercel.app</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+                          </html>
